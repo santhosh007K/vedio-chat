@@ -4,6 +4,7 @@ let currentUser = null;
 let videos = [];
 let currentVideo = null;
 let isHandRaised = false;
+let conversationHistory = []; // Store conversation history for current user
 
 // DOM elements
 const videoPlayer = document.getElementById('videoPlayer');
@@ -108,6 +109,7 @@ function initializeSocket() {
     });
     
     socket.on('newMessage', (message) => {
+        console.log('📨 New message received:', message);
         addChatMessage(message);
     });
     
@@ -124,6 +126,45 @@ function initializeSocket() {
     
     socket.on('videoControl', (data) => {
         handleVideoControl(data);
+    });
+    
+    socket.on('conversationHistory', (history) => {
+        console.log('📚 Received conversation history from server:', history);
+        conversationHistory = history;
+        updateConversationIndicator();
+        
+        // Update the AI chat modal if it's open
+        if (!aiChatModal.classList.contains('hidden')) {
+            aiChatMessages.innerHTML = '';
+            if (conversationHistory.length > 0) {
+                conversationHistory.forEach(msg => {
+                    addAiMessage(msg.content, msg.role === 'user' ? 'user' : 'ai');
+                });
+            } else {
+                // Add welcome message if no conversation history
+                const welcomeMessage = document.createElement('div');
+                welcomeMessage.className = 'ai-message';
+                welcomeMessage.innerHTML = `
+                    <i class="fas fa-robot"></i>
+                    <p>Hello! I can help you understand what's happening in this video frame. What would you like to know?</p>
+                `;
+                aiChatMessages.appendChild(welcomeMessage);
+            }
+        }
+    });
+    
+    socket.on('conversationUpdate', (data) => {
+        console.log('🔄 Received conversation update:', data);
+        
+        // Update conversation history from server
+        conversationHistory = data.conversationHistory;
+        updateConversationIndicator();
+        
+        // If AI chat modal is open, only add the AI response (user message already added)
+        if (!aiChatModal.classList.contains('hidden')) {
+            // Add AI response
+            addAiMessage(data.aiResponse, 'ai');
+        }
     });
 }
 
@@ -145,6 +186,12 @@ function setupEventListeners() {
     aiChatBtn.addEventListener('click', openAiChatModal);
     closeAiModal.addEventListener('click', closeAiChatModal);
     aiChatForm.addEventListener('submit', handleAiChatSubmit);
+    
+    // Clear history button
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    if (clearHistoryBtn) {
+        clearHistoryBtn.addEventListener('click', clearConversationHistory);
+    }
     
     // Video player events
     videoPlayer.addEventListener('loadedmetadata', () => {
@@ -395,9 +442,19 @@ function handleVideoControl(data) {
     switch (data.action) {
         case 'play':
             videoPlayer.play();
+            // Update play/pause button if it exists
+            const playPauseBtn = document.getElementById('playPauseBtn');
+            if (playPauseBtn) {
+                playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+            }
             break;
         case 'pause':
             videoPlayer.pause();
+            // Update play/pause button if it exists
+            const pauseBtn = document.getElementById('playPauseBtn');
+            if (pauseBtn) {
+                pauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+            }
             break;
         case 'seek':
             videoPlayer.currentTime = data.time;
@@ -405,6 +462,13 @@ function handleVideoControl(data) {
         case 'volume':
             videoPlayer.volume = data.volume;
             break;
+    }
+    
+    // Show notification for hand raise/lower events
+    if (data.reason === 'hand_raised' && data.userId !== socket.id) {
+        showNotification('Video paused - someone raised their hand for conversation', 'info');
+    } else if (data.reason === 'hand_lowered' && data.userId !== socket.id) {
+        showNotification('Video resumed - conversation ended', 'success');
     }
 }
 
@@ -419,19 +483,45 @@ function handleChatSubmit(e) {
     chatInput.value = '';
 }
 
+// Enhanced chat message handling to support AI responses
 function addChatMessage(message) {
     const messageElement = document.createElement('div');
     messageElement.className = `message ${message.userId === socket.id ? 'own' : ''} ${message.type || ''}`;
     
     const time = new Date(message.timestamp).toLocaleTimeString();
     
-    messageElement.innerHTML = `
-        <div class="message-header">
-            <span class="message-username">${message.username}</span>
-            <span class="message-time">${time}</span>
-        </div>
-        <div class="message-content">${escapeHtml(message.message)}</div>
-    `;
+    // Special handling for AI responses
+    if (message.type === 'ai-response') {
+        messageElement.innerHTML = `
+            <div class="message-header">
+                <span class="message-username">
+                    <i class="fas fa-robot" style="color: #667eea; margin-right: 5px;"></i>
+                    ${message.username}
+                </span>
+                <span class="message-time">${time}</span>
+            </div>
+            <div class="message-content ai-response">${escapeHtml(message.message)}</div>
+        `;
+        
+        // Always show AI responses in the main chat
+        // Update conversation indicator if it's related to current user
+        if (message.relatedTo === socket.id) {
+            updateConversationIndicator();
+            
+            // If AI chat modal is open, also add the response to the modal
+            if (!aiChatModal.classList.contains('hidden')) {
+                addAiMessage(message.message, 'ai');
+            }
+        }
+    } else {
+        messageElement.innerHTML = `
+            <div class="message-header">
+                <span class="message-username">${message.username}</span>
+                <span class="message-time">${time}</span>
+            </div>
+            <div class="message-content">${escapeHtml(message.message)}</div>
+        `;
+    }
     
     chatMessages.appendChild(messageElement);
     chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -456,6 +546,48 @@ async function handleRaiseHand() {
         console.log('📸 Screenshot captured:', screenshot ? 'Success' : 'Failed');
     } else if (isHandRaised) {
         console.log('⚠️ Cannot capture screenshot - video is paused or ended');
+    }
+    
+    // Auto-pause video when raising hand
+    if (isHandRaised && !videoPlayer.paused) {
+        console.log('⏸️ Auto-pausing video for conversation');
+        videoPlayer.pause();
+        // Update play/pause button if it exists
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        if (playPauseBtn) {
+            playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+        }
+        // Show notification about auto-pause
+        showNotification('Video paused for conversation. Lower hand to resume.', 'info');
+        
+        // Automatically open AI chat modal for conversation
+        setTimeout(() => {
+            if (isHandRaised) {
+                console.log('🤖 Auto-opening AI chat modal for conversation');
+                openAiChatModal();
+            }
+        }, 1000); // Small delay to ensure hand raise is processed
+    }
+    
+    // Auto-play video when lowering hand
+    if (!isHandRaised && videoPlayer.paused) {
+        console.log('▶️ Auto-playing video after conversation');
+        videoPlayer.play().catch(error => {
+            console.error('Error auto-playing video:', error);
+        });
+        // Update play/pause button if it exists
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        if (playPauseBtn) {
+            playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+        }
+        // Show notification about auto-play
+        showNotification('Video resumed. Conversation ended.', 'success');
+        
+        // Automatically close AI chat modal when hand is lowered
+        if (!aiChatModal.classList.contains('hidden')) {
+            console.log('🤖 Auto-closing AI chat modal after conversation');
+            closeAiChatModal();
+        }
     }
     
     console.log('📤 Sending raise hand event to server');
@@ -487,14 +619,49 @@ function handleHandRaised(data) {
 
 async function captureVideoFrame() {
     try {
+        // Check if video is ready
+        if (videoPlayer.readyState < 2) {
+            console.error('Video not ready for capture');
+            return null;
+        }
+        
+        // Check if video has valid dimensions
+        if (videoPlayer.videoWidth === 0 || videoPlayer.videoHeight === 0) {
+            console.error('Video dimensions are zero');
+            return null;
+        }
+        
+        console.log(`📐 Video dimensions: ${videoPlayer.videoWidth}x${videoPlayer.videoHeight}`);
+        
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
+        // Set canvas dimensions to match video
         canvas.width = videoPlayer.videoWidth;
         canvas.height = videoPlayer.videoHeight;
         
+        // Draw the current video frame to canvas
         ctx.drawImage(videoPlayer, 0, 0, canvas.width, canvas.height);
         
+        // Check if the canvas has content (not completely black)
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        let hasContent = false;
+        
+        // Check if any pixel is not black (simple check)
+        for (let i = 0; i < data.length; i += 4) {
+            if (data[i] > 10 || data[i + 1] > 10 || data[i + 2] > 10) {
+                hasContent = true;
+                break;
+            }
+        }
+        
+        if (!hasContent) {
+            console.error('Captured frame appears to be black');
+            return null;
+        }
+        
+        console.log('✅ Video frame captured successfully');
         return canvas.toDataURL('image/jpeg', 0.8);
     } catch (error) {
         console.error('Error capturing video frame:', error);
@@ -505,7 +672,36 @@ async function captureVideoFrame() {
 // AI Chat functionality
 function openAiChatModal() {
     aiChatModal.classList.remove('hidden');
-    captureScreenshotForAi();
+    
+    // Always clear conversation history for new chat
+    console.log('🔄 Clearing conversation history for new chat');
+    conversationHistory = [];
+    
+    // Clear conversation history on server
+    if (socket) {
+        socket.emit('clearConversationHistory');
+    }
+    
+    // Clear previous conversation display
+    aiChatMessages.innerHTML = '';
+    
+    // Add welcome message for new conversation
+    const welcomeMessage = document.createElement('div');
+    welcomeMessage.className = 'ai-message';
+    welcomeMessage.innerHTML = `
+        <i class="fas fa-robot"></i>
+        <p>Hello! I can help you understand what's happening in this video frame. What would you like to know?</p>
+    `;
+    aiChatMessages.appendChild(welcomeMessage);
+    
+    // Update conversation indicator
+    updateConversationIndicator();
+    
+    // Capture fresh screenshot for new conversation (with delay to ensure modal is open)
+    setTimeout(() => {
+        console.log('📸 Capturing fresh screenshot for new conversation');
+        captureScreenshotForAi();
+    }, 100);
 }
 
 function closeAiChatModal() {
@@ -514,16 +710,69 @@ function closeAiChatModal() {
 }
 
 async function captureScreenshotForAi() {
-    if (!videoPlayer.paused && !videoPlayer.ended) {
-        const screenshot = await captureVideoFrame();
-        if (screenshot) {
-            const img = new Image();
-            img.onload = () => {
-                const ctx = screenshotCanvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, screenshotCanvas.width, screenshotCanvas.height);
-            };
-            img.src = screenshot;
+    console.log('📸 Starting screenshot capture for AI...');
+    
+    // Check if video is playing and has content
+    if (videoPlayer.paused || videoPlayer.ended) {
+        console.log('⚠️ Video is paused or ended, cannot capture frame');
+        showNotification('Please play the video to capture a frame', 'warning');
+        return;
+    }
+    
+    if (videoPlayer.readyState < 2) {
+        console.log('⚠️ Video not ready for capture');
+        showNotification('Please wait for video to load completely', 'warning');
+        return;
+    }
+    
+    const screenshot = await captureVideoFrame();
+    if (screenshot) {
+        console.log('✅ Screenshot captured, updating preview...');
+        
+        // Update the hidden canvas for AI processing
+        const img = new Image();
+        img.onload = () => {
+            const ctx = screenshotCanvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, screenshotCanvas.width, screenshotCanvas.height);
+            console.log('✅ Screenshot preview updated');
+        };
+        img.src = screenshot;
+        
+        // Show screenshot preview in the modal
+        showScreenshotPreview(screenshot);
+    } else {
+        console.error('❌ Failed to capture screenshot');
+        showNotification('Failed to capture video frame. Please try again.', 'error');
+    }
+}
+
+function showScreenshotPreview(screenshotDataUrl) {
+    // Create or update screenshot preview in the AI chat modal
+    let previewContainer = document.getElementById('screenshotPreview');
+    
+    if (!previewContainer) {
+        previewContainer = document.createElement('div');
+        previewContainer.id = 'screenshotPreview';
+        previewContainer.className = 'screenshot-preview';
+        previewContainer.innerHTML = `
+            <h4><i class="fas fa-camera"></i> Captured Frame Preview</h4>
+            <img src="" alt="Video frame preview" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+            <p style="font-size: 0.9rem; color: #666; margin-top: 8px;">
+                <i class="fas fa-info-circle"></i> This is the frame that will be analyzed by AI
+            </p>
+        `;
+        
+        // Insert the preview at the top of the AI chat modal
+        const aiChatContent = document.querySelector('.ai-chat-content');
+        if (aiChatContent) {
+            aiChatContent.insertBefore(previewContainer, aiChatContent.firstChild);
         }
+    }
+    
+    // Update the image source
+    const previewImg = previewContainer.querySelector('img');
+    if (previewImg) {
+        previewImg.src = screenshotDataUrl;
     }
 }
 
@@ -533,39 +782,84 @@ async function handleAiChatSubmit(e) {
     const message = aiChatInput.value.trim();
     if (!message) return;
     
-    // Add user message to AI chat
+    console.log('🤖 AI Chat message sent:', message);
+    
+    // Add user message to AI chat display immediately
     addAiMessage(message, 'user');
+    
+    // Clear input immediately
     aiChatInput.value = '';
     
     try {
         showLoading(true);
         
-        const response = await fetch('/ai-chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
+        // Check if we have a valid screenshot
+        const screenshot = screenshotCanvas.toDataURL('image/jpeg', 0.8);
+        
+        // Verify the screenshot is not completely black
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            let hasContent = false;
+            
+            // Check if any pixel is not black
+            for (let i = 0; i < data.length; i += 4) {
+                if (data[i] > 10 || data[i + 1] > 10 || data[i + 2] > 10) {
+                    hasContent = true;
+                    break;
+                }
+            }
+            
+            if (!hasContent) {
+                console.error('❌ Screenshot appears to be black, recapturing...');
+                showNotification('Screenshot is black, recapturing video frame...', 'warning');
+                
+                // Try to recapture the screenshot
+                setTimeout(async () => {
+                    await captureScreenshotForAi();
+                    showNotification('Please try sending your message again', 'info');
+                }, 1000);
+                
+                showLoading(false);
+                return;
+            }
+            
+            console.log('✅ Screenshot verified, sending to AI...');
+            
+            // Use the new socket-based AI chat for better conversation handling
+            socket.emit('aiChatMessage', { 
                 message,
-                screenshot: screenshotCanvas.toDataURL('image/jpeg', 0.8)
-            })
-        });
+                screenshot: screenshot,
+                userId: socket.id,
+                isFirstMessage: true // Always true since we clear history
+            });
+            
+            showLoading(false);
+        };
         
-        const result = await response.json();
+        img.onerror = () => {
+            console.error('❌ Failed to load screenshot for verification');
+            showNotification('Failed to verify screenshot. Please try again.', 'error');
+            showLoading(false);
+        };
         
-        if (result.success) {
-            addAiMessage(result.response, 'ai');
-        } else {
-            addAiMessage('Sorry, I encountered an error. Please try again.', 'ai');
-        }
+        img.src = screenshot;
+        
     } catch (error) {
         console.error('AI chat error:', error);
         addAiMessage('Sorry, I encountered an error. Please try again.', 'ai');
-    } finally {
         showLoading(false);
     }
 }
 
+// Enhanced AI message display for modal
 function addAiMessage(message, sender) {
     const messageElement = document.createElement('div');
     messageElement.className = 'ai-message';
@@ -580,6 +874,52 @@ function addAiMessage(message, sender) {
     
     aiChatMessages.appendChild(messageElement);
     aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+    
+    // Note: Conversation history is now handled in handleAiChatSubmit and addChatMessage
+    // This function only displays messages in the AI chat modal
+}
+
+// Add a function to clear conversation history
+function clearConversationHistory() {
+    conversationHistory = [];
+    if (socket) {
+        // Notify server to clear history
+        socket.emit('clearConversationHistory');
+    }
+    
+    // Clear the AI chat messages display
+    aiChatMessages.innerHTML = '';
+    
+    // Add a welcome message back
+    const welcomeMessage = document.createElement('div');
+    welcomeMessage.className = 'ai-message';
+    welcomeMessage.innerHTML = `
+        <i class="fas fa-robot"></i>
+        <p>Hello! I can help you understand what's happening in this video frame. What would you like to know?</p>
+    `;
+    aiChatMessages.appendChild(welcomeMessage);
+    
+    // Update conversation indicator
+    updateConversationIndicator();
+    
+    // Show notification
+    showNotification('Conversation history cleared', 'info');
+}
+
+// Add conversation history indicator
+function updateConversationIndicator() {
+    const indicator = document.getElementById('conversationIndicator');
+    if (indicator) {
+        if (conversationHistory.length > 0) {
+            indicator.style.display = 'block';
+            const span = indicator.querySelector('span');
+            if (span) {
+                span.textContent = `${conversationHistory.length} messages in conversation`;
+            }
+        } else {
+            indicator.style.display = 'none';
+        }
+    }
 }
 
 // Users list functionality

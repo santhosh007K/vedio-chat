@@ -25,27 +25,77 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Video Section -->
-            <div class="video-section">
-                <div class="video-container">
-                    <video id="videoPlayer" controls>
-                        <source src="" type="video/mp4">
-                        Your browser does not support the video tag.
-                    </video>
-                    
-                    <!-- Video Controls Overlay -->
-                    <div class="video-controls-overlay" id="videoControlsOverlay">
-                        <div class="control-buttons">
-                            <button class="control-btn" id="playPauseBtn">
-                                <i class="fas fa-play"></i>
-                            </button>
-                            <button class="control-btn" id="muteBtn">
-                                <i class="fas fa-volume-up"></i>
-                            </button>
-                            <button class="control-btn" id="fullscreenBtn">
-                                <i class="fas fa-expand"></i>
-                            </button>
+            <!-- Left Panel - Video Player and Chat -->
+            <div class="left-panel">
+                <!-- Video Player Section -->
+                <div class="video-section">
+                    <div class="video-container">
+                        <video id="videoPlayer" controls>
+                            <source src="" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        
+                        <!-- Video Controls Overlay -->
+                        <div class="video-controls-overlay" id="videoControlsOverlay">
+                            <div class="control-buttons">
+                                <button class="control-btn" id="playPauseBtn">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <button class="control-btn" id="muteBtn">
+                                    <i class="fas fa-volume-up"></i>
+                                </button>
+                                <button class="control-btn" id="fullscreenBtn">
+                                    <i class="fas fa-expand"></i>
+                                </button>
+                            </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Chat Section -->
+                <div class="chat-section">
+                    <div class="chat-header">
+                        <h3><i class="fas fa-comments"></i> Live Chat</h3>
+                        <div id="conversationIndicator" class="conversation-indicator hidden">
+                            <i class="fas fa-history"></i>
+                            <span>0 messages in conversation</span>
+                        </div>
+                    </div>
+
+                    <!-- Chat Messages -->
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="welcome-message">
+                            <i class="fas fa-info-circle"></i>
+                            <p>Welcome to the video chat! Start watching videos and chatting with others.</p>
+                        </div>
+                    </div>
+
+                    <!-- Chat Input -->
+                    <div class="chat-input-container">
+                        <form id="chatForm" class="chat-form">
+                            <input type="text" id="chatInput" placeholder="Type your message..." maxlength="500">
+                            <button type="submit" class="send-btn">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel - Controls, Upload and Video List -->
+            <div class="right-panel">
+                <!-- Video Controls Section -->
+                <div class="controls-section">
+                    <h3><i class="fas fa-gamepad"></i> Video Controls</h3>
+                    <div class="video-controls">
+                        <button class="raise-hand-btn" id="raiseHandBtn">
+                            <i class="fas fa-hand-paper"></i>
+                            <span>Raise Hand</span>
+                        </button>
+                        <button class="ai-chat-btn" id="aiChatBtn">
+                            <i class="fas fa-robot"></i>
+                            <span>AI Chat</span>
+                        </button>
                     </div>
                 </div>
 
@@ -77,23 +127,6 @@
                         <p class="no-videos">No videos uploaded yet</p>
                     </div>
                 </div>
-            </div>
-
-            <!-- Chat Section -->
-            <div class="chat-section">
-                <div class="chat-header">
-                    <h3><i class="fas fa-comments"></i> Live Chat</h3>
-                    <div class="chat-controls">
-                        <button class="raise-hand-btn" id="raiseHandBtn">
-                            <i class="fas fa-hand-paper"></i>
-                            <span>Raise Hand</span>
-                        </button>
-                        <button class="ai-chat-btn" id="aiChatBtn">
-                            <i class="fas fa-robot"></i>
-                            <span>AI Chat</span>
-                        </button>
-                    </div>
-                </div>
 
                 <!-- Users List -->
                 <div class="users-list">
@@ -101,24 +134,6 @@
                     <div id="usersList" class="users-container">
                         <!-- Users will be populated here -->
                     </div>
-                </div>
-
-                <!-- Chat Messages -->
-                <div class="chat-messages" id="chatMessages">
-                    <div class="welcome-message">
-                        <i class="fas fa-info-circle"></i>
-                        <p>Welcome to the video chat! Start watching videos and chatting with others.</p>
-                    </div>
-                </div>
-
-                <!-- Chat Input -->
-                <div class="chat-input-container">
-                    <form id="chatForm" class="chat-form">
-                        <input type="text" id="chatInput" placeholder="Type your message..." maxlength="500">
-                        <button type="submit" class="send-btn">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
-                    </form>
                 </div>
             </div>
         </main>
@@ -128,9 +143,14 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h3><i class="fas fa-robot"></i> AI Assistant</h3>
-                    <button class="close-btn" id="closeAiModal">
-                        <i class="fas fa-times"></i>
-                    </button>
+                    <div class="modal-controls">
+                        <button class="clear-history-btn" id="clearHistoryBtn" title="Clear conversation history">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <button class="close-btn" id="closeAiModal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="modal-body">
                     <div class="screenshot-preview">
