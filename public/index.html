@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Chat App</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-video"></i> Video Chat App</h1>
+                <div class="user-info">
+                    <span id="username">Loading...</span>
+                    <div class="connection-status" id="connectionStatus">
+                        <i class="fas fa-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Video Section -->
+            <div class="video-section">
+                <div class="video-container">
+                    <video id="videoPlayer" controls>
+                        <source src="" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    
+                    <!-- Video Controls Overlay -->
+                    <div class="video-controls-overlay" id="videoControlsOverlay">
+                        <div class="control-buttons">
+                            <button class="control-btn" id="playPauseBtn">
+                                <i class="fas fa-play"></i>
+                            </button>
+                            <button class="control-btn" id="muteBtn">
+                                <i class="fas fa-volume-up"></i>
+                            </button>
+                            <button class="control-btn" id="fullscreenBtn">
+                                <i class="fas fa-expand"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Video Upload Section -->
+                <div class="upload-section">
+                    <h3><i class="fas fa-cloud-upload-alt"></i> Upload Video</h3>
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="upload-area" id="uploadArea">
+                            <i class="fas fa-file-video"></i>
+                            <p>Drag & drop video files here or click to browse</p>
+                            <input type="file" id="videoFile" name="video" accept="video/*" hidden>
+                        </div>
+                        <button type="submit" class="upload-btn" id="uploadBtn" disabled>
+                            <i class="fas fa-upload"></i> Upload Video
+                        </button>
+                    </form>
+                    <div id="uploadProgress" class="upload-progress hidden">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <span id="progressText">0%</span>
+                    </div>
+                </div>
+
+                <!-- Video Library -->
+                <div class="video-library">
+                    <h3><i class="fas fa-folder-open"></i> Video Library</h3>
+                    <div id="videoList" class="video-list">
+                        <p class="no-videos">No videos uploaded yet</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Section -->
+            <div class="chat-section">
+                <div class="chat-header">
+                    <h3><i class="fas fa-comments"></i> Live Chat</h3>
+                    <div class="chat-controls">
+                        <button class="raise-hand-btn" id="raiseHandBtn">
+                            <i class="fas fa-hand-paper"></i>
+                            <span>Raise Hand</span>
+                        </button>
+                        <button class="ai-chat-btn" id="aiChatBtn">
+                            <i class="fas fa-robot"></i>
+                            <span>AI Chat</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Users List -->
+                <div class="users-list">
+                    <h4><i class="fas fa-users"></i> Online Users</h4>
+                    <div id="usersList" class="users-container">
+                        <!-- Users will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Chat Messages -->
+                <div class="chat-messages" id="chatMessages">
+                    <div class="welcome-message">
+                        <i class="fas fa-info-circle"></i>
+                        <p>Welcome to the video chat! Start watching videos and chatting with others.</p>
+                    </div>
+                </div>
+
+                <!-- Chat Input -->
+                <div class="chat-input-container">
+                    <form id="chatForm" class="chat-form">
+                        <input type="text" id="chatInput" placeholder="Type your message..." maxlength="500">
+                        <button type="submit" class="send-btn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </main>
+
+        <!-- AI Chat Modal -->
+        <div id="aiChatModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-robot"></i> AI Assistant</h3>
+                    <button class="close-btn" id="closeAiModal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="screenshot-preview">
+                        <h4>Current Video Frame</h4>
+                        <canvas id="screenshotCanvas" width="400" height="225"></canvas>
+                    </div>
+                    <div class="ai-chat-area">
+                        <div id="aiChatMessages" class="ai-messages">
+                            <div class="ai-message">
+                                <i class="fas fa-robot"></i>
+                                <p>Hello! I can help you understand what's happening in this video frame. What would you like to know?</p>
+                            </div>
+                        </div>
+                        <form id="aiChatForm" class="ai-chat-form">
+                            <input type="text" id="aiChatInput" placeholder="Ask about the video content..." maxlength="500">
+                            <button type="submit" class="ai-send-btn">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay hidden">
+            <div class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Processing...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
