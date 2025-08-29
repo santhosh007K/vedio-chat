@@ -56,7 +56,7 @@ A YouTube-like web application with video upload functionality, real-time chat, 
    Edit the `.env` file with your Azure OpenAI credentials:
    ```env
    # Server Configuration
-   PORT=3001
+   PORT=3000
    NODE_ENV=development
 
    # Azure OpenAI Configuration
@@ -87,7 +87,7 @@ npm run dev
 npm start
 ```
 
-The application will be available at `http://localhost:3001`
+The application will be available at `http://localhost:3000`
 
 ## Azure OpenAI Setup
 
@@ -190,7 +190,7 @@ video-chat-app/
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PORT` | Server port | 3001 |
+| `PORT` | Server port | 3000|
 | `NODE_ENV` | Environment mode | development |
 | `AZURE_OPENAI_API_KEY` | Azure OpenAI API key | - |
 | `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint | - |
