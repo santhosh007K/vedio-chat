@@ -2,4 +2,6 @@
 eval "$(ssh-agent -s)"
 
 # add your private key (file without .pub)
-ssh-add ./id_psop
+ssh-add ./id_ed25519
+
+# mkdir a dir uploads
