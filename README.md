@@ -1,229 +1,216 @@
-# Video Chat App
+# Video Chat App with Enhanced AI Integration
 
-A YouTube-like web application with video upload functionality, real-time chat, and AI-powered video analysis using Azure OpenAI.
+A real-time video chat application with advanced AI-powered features for video analysis and conversational assistance.
 
-## Features
+## 🚀 Features
 
-### 🎥 Video Player
-- YouTube-like video player interface
-- Support for multiple video formats (MP4, WebM, AVI, MOV, MKV)
-- Drag & drop video upload
-- Video library management
-- Synchronized video playback across users
+### Core Features
+- **Real-time Video Streaming**: Upload and stream videos with synchronized playback
+- **Live Chat**: Real-time messaging between users
+- **User Management**: See who's online and their status
+- **Video Library**: Organize and manage uploaded videos
 
-### 💬 Real-time Chat
-- Live chat with all connected users
-- User presence indicators
-- Message history
-- Real-time notifications
+### Enhanced AI Features
+- **Smart Raise Hand Function**: 
+  - Capture video frames when raising hand
+  - AI-powered analysis of current video content
+  - Conversational context awareness
+  - Maintains conversation history for better responses
 
-### 🤖 AI Integration
-- Azure OpenAI integration for video analysis
-- "Raise Hand" feature with automatic screenshot capture
-- AI-powered video content analysis
-- Curated answers based on video frames
+- **Conversational AI Chat**:
+  - Context-aware responses using conversation history
+  - Sends last 2 messages to Azure OpenAI for better context
+  - Multimodal analysis with video screenshots
+  - Conversation history management
+  - Clear conversation history functionality
 
-### 🎯 Interactive Features
-- Raise hand functionality with visual indicators
-- Screenshot capture of current video frame
-- AI chat modal for detailed video analysis
-- Keyboard shortcuts for video controls
+- **Image Analysis**:
+  - Automatic screenshot capture during raise hand
+  - AI analysis of video frames
+  - Visual content understanding
+  - Contextual responses based on video content
 
-## Prerequisites
+## 🛠️ Technology Stack
+
+- **Backend**: Node.js, Express.js, Socket.IO
+- **Frontend**: Vanilla JavaScript, HTML5, CSS3
+- **AI Integration**: Azure OpenAI (GPT-4 Vision)
+- **File Handling**: Multer, fs-extra
+- **Real-time Communication**: Socket.IO
+
+## 📋 Prerequisites
 
 - Node.js (v14 or higher)
-- npm or yarn
-- Azure OpenAI service account
+- Azure OpenAI account with API access
+- Environment variables configured
 
-## Installation
+## 🔧 Installation
 
-1. **Clone the repository**
+1. **Clone the repository**:
    ```bash
    git clone <repository-url>
    cd video-chat-app
    ```
 
-2. **Install dependencies**
+2. **Install dependencies**:
    ```bash
    npm install
    ```
 
-3. **Set up environment variables**
-   ```bash
-   cp env.example .env
-   ```
-   
-   Edit the `.env` file with your Azure OpenAI credentials:
+3. **Set up environment variables**:
+   Create a `.env` file in the root directory:
    ```env
-   # Server Configuration
+   AZURE_OPENAI_API_KEY=your_azure_openai_api_key
+   AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint
+   AZURE_OPENAI_DEPLOYMENT_NAME=your_deployment_name
+   AZURE_OPENAI_API_VERSION=2024-08-01-preview
    PORT=3000
-   NODE_ENV=development
-
-   # Azure OpenAI Configuration
-   AZURE_OPENAI_API_KEY=your_azure_openai_api_key_here
-   AZURE_OPENAI_ENDPOINT=https://your-resource-name.openai.azure.com/
-   AZURE_OPENAI_DEPLOYMENT_NAME=your-deployment-name
-
-   # File Upload Configuration
-   MAX_FILE_SIZE=100000000
    UPLOAD_PATH=./uploads
+   MAX_FILE_SIZE=100000000
    ALLOWED_VIDEO_TYPES=mp4,webm,avi,mov,mkv
    ```
 
-4. **Create uploads directory**
+4. **Run the application**:
    ```bash
-   mkdir uploads
+   npm start
    ```
 
-## Running the Application
+5. **Access the application**:
+   Open your browser and navigate to `http://localhost:3000`
 
-### Development Mode
+## 🎯 How to Use
+
+### Basic Usage
+1. **Upload Videos**: Drag and drop video files or click to browse
+2. **Watch Videos**: Select videos from the library to start watching
+3. **Chat**: Use the live chat to communicate with other users
+4. **Raise Hand**: Click the "Raise Hand" button to get AI assistance
+
+### AI Features
+
+#### Raise Hand Function
+- Click the "Raise Hand" button while watching a video
+- The system automatically captures the current video frame
+- AI analyzes the frame and provides contextual information
+- Responses consider previous conversation history
+
+#### AI Chat
+- Click the "AI Chat" button to open the AI assistant modal
+- Ask questions about the current video content
+- AI maintains conversation context for better responses
+- Use the trash icon to clear conversation history
+
+#### Conversation History
+- AI remembers the last 10 messages in your conversation
+- Sends the last 2 messages to Azure OpenAI for context
+- Conversation indicator shows message count
+- Clear history anytime with the trash button
+
+## 🔍 AI Integration Details
+
+### Azure OpenAI Configuration
+- Uses GPT-4 Vision for multimodal analysis
+- Maintains conversation context across interactions
+- Optimized prompts for video content analysis
+- Error handling for API failures
+
+### Conversation Management
+- Server-side conversation history storage
+- Automatic cleanup on user disconnect
+- Context window management (last 10 messages)
+- Real-time conversation updates
+
+### Image Analysis
+- Automatic video frame capture
+- Base64 encoding for API transmission
+- Quality optimization for analysis
+- Fallback handling for capture failures
+
+## 🎨 UI/UX Features
+
+- **Modern Design**: Clean, responsive interface
+- **Real-time Updates**: Live status indicators
+- **Visual Feedback**: Animations and transitions
+- **Accessibility**: Keyboard shortcuts and screen reader support
+- **Mobile Responsive**: Works on various screen sizes
+
+## 🔧 Configuration Options
+
+### Environment Variables
+- `AZURE_OPENAI_API_KEY`: Your Azure OpenAI API key
+- `AZURE_OPENAI_ENDPOINT`: Azure OpenAI endpoint URL
+- `AZURE_OPENAI_DEPLOYMENT_NAME`: Model deployment name
+- `AZURE_OPENAI_API_VERSION`: API version (default: 2024-08-01-preview)
+- `PORT`: Server port (default: 3000)
+- `UPLOAD_PATH`: Video upload directory (default: ./uploads)
+- `MAX_FILE_SIZE`: Maximum file size in bytes (default: 100MB)
+- `ALLOWED_VIDEO_TYPES`: Comma-separated list of allowed video formats
+
+### File Upload Settings
+- Maximum file size: 100MB
+- Supported formats: MP4, WebM, AVI, MOV, MKV
+- Automatic file naming with UUID
+- Progress tracking and error handling
+
+## 🚀 Deployment
+
+### Local Development
 ```bash
-npm run dev
+npm run dev  # Uses nodemon for auto-restart
 ```
 
-### Production Mode
+### Production
 ```bash
 npm start
 ```
 
-The application will be available at `http://localhost:3000`
-
-## Azure OpenAI Setup
-
-1. **Create an Azure OpenAI resource**
-   - Go to Azure Portal
-   - Create a new Azure OpenAI resource
-   - Note down the endpoint URL and API key
-
-2. **Deploy a model**
-   - In your Azure OpenAI resource, go to "Model deployments"
-   - Deploy a model (e.g., GPT-4, GPT-3.5-turbo)
-   - Note down the deployment name
-
-3. **Update environment variables**
-   - Set `AZURE_OPENAI_API_KEY` to your API key
-   - Set `AZURE_OPENAI_ENDPOINT` to your endpoint URL
-   - Set `AZURE_OPENAI_DEPLOYMENT_NAME` to your deployment name
-
-## Usage
-
-### Uploading Videos
-1. Click on the upload area or drag & drop video files
-2. Select a video file (supported formats: MP4, WebM, AVI, MOV, MKV)
-3. Click "Upload Video"
-4. The video will appear in the video library
-
-### Watching Videos
-1. Select a video from the video library
-2. The video will start playing in the main player
-3. All connected users will see the same video
-
-### Using Chat
-1. Type your message in the chat input
-2. Press Enter or click the send button
-3. Messages appear in real-time for all users
-
-### Raise Hand Feature
-1. Click the "Raise Hand" button
-2. A screenshot of the current video frame is captured
-3. The AI analyzes the frame and provides insights
-4. Other users can see who has raised their hand
-
-### AI Chat
-1. Click the "AI Chat" button
-2. A modal opens with the current video frame
-3. Ask questions about the video content
-4. Get AI-powered responses based on the video frame
-
-## Keyboard Shortcuts
-
-- **Space**: Play/Pause video
-- **Arrow Left/Right**: Seek backward/forward 10 seconds
-- **Arrow Up/Down**: Increase/decrease volume
-- **Escape**: Close AI chat modal
-- **Ctrl+Enter**: Send chat message
-
-## API Endpoints
-
-### Video Management
-- `POST /upload` - Upload a video file
-- `GET /videos` - Get all uploaded videos
-- `POST /videos/current` - Set current video
-
-### AI Chat
-- `POST /ai-chat` - Send message to AI with optional screenshot
-
-### WebSocket Events
-- `joinRoom` - Join video chat room
-- `chatMessage` - Send chat message
-- `raiseHand` - Raise/lower hand with screenshot
-- `videoControl` - Control video playback
-- `videoChanged` - Video selection changed
-
-## File Structure
-
-```
-video-chat-app/
-├── public/
-│   ├── index.html      # Main HTML file
-│   ├── styles.css      # CSS styles
-│   └── app.js          # Frontend JavaScript
-├── uploads/            # Video upload directory
-├── server.js           # Express server
-├── package.json        # Dependencies
-├── env.example         # Environment variables template
-└── README.md           # This file
+### Docker (Optional)
+```bash
+docker build -t video-chat-app .
+docker run -p 3000:3000 video-chat-app
 ```
 
-## Technologies Used
+## 🔒 Security Considerations
 
-- **Backend**: Node.js, Express.js, Socket.IO
-- **Frontend**: Vanilla JavaScript, HTML5, CSS3
-- **AI**: Azure OpenAI API
-- **File Upload**: Multer
-- **Real-time Communication**: Socket.IO
+- File type validation
+- File size limits
+- CORS configuration
+- Environment variable protection
+- Input sanitization
+- Error handling
 
-## Configuration Options
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | 3000|
-| `NODE_ENV` | Environment mode | development |
-| `AZURE_OPENAI_API_KEY` | Azure OpenAI API key | - |
-| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint | - |
-| `AZURE_OPENAI_DEPLOYMENT_NAME` | Model deployment name | - |
-| `MAX_FILE_SIZE` | Maximum file upload size | 100MB |
-| `UPLOAD_PATH` | Upload directory path | ./uploads |
-| `ALLOWED_VIDEO_TYPES` | Allowed video formats | mp4,webm,avi,mov,mkv |
-
-## Troubleshooting
+## 🐛 Troubleshooting
 
 ### Common Issues
 
-1. **Video upload fails**
-   - Check file size (max 100MB by default)
-   - Ensure file format is supported
-   - Verify uploads directory exists and is writable
+1. **AI not responding**:
+   - Check Azure OpenAI credentials in `.env`
+   - Verify API endpoint and deployment name
+   - Check network connectivity
 
-2. **AI chat not working**
-   - Verify Azure OpenAI credentials in .env file
-   - Check if the model deployment is active
-   - Ensure API key has proper permissions
+2. **Video upload fails**:
+   - Verify file size is under 100MB
+   - Check file format is supported
+   - Ensure uploads directory has write permissions
 
-3. **Socket connection issues**
+3. **Socket connection issues**:
    - Check if server is running
-   - Verify firewall settings
-   - Check browser console for errors
+   - Verify port configuration
+   - Check firewall settings
 
-4. **Video playback issues**
-   - Ensure video format is supported by browser
-   - Check if video file is corrupted
-   - Try different video formats
+### Debug Mode
+Enable debug logging by setting `NODE_ENV=development` in your environment.
 
-## Contributing
+## 📝 API Endpoints
+
+- `GET /`: Main application page
+- `POST /upload`: Upload video files
+- `GET /videos`: Get list of uploaded videos
+- `POST /videos/current`: Set current video
+- `POST /ai-chat`: AI chat endpoint (with conversation history)
+- WebSocket events for real-time communication
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -231,24 +218,17 @@ video-chat-app/
 4. Test thoroughly
 5. Submit a pull request
 
-## License
+## 📄 License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Support
+## 🙏 Acknowledgments
 
-For support and questions:
-- Create an issue in the repository
-- Check the troubleshooting section
-- Review the API documentation
+- Azure OpenAI for AI capabilities
+- Socket.IO for real-time communication
+- Font Awesome for icons
+- Express.js community for the framework
 
-## Future Enhancements
+---
 
-- User authentication and profiles
-- Video playlists and categories
-- Advanced video controls
-- Screen sharing capabilities
-- Mobile app version
-- Database integration for persistent storage
-- Video transcoding for better compatibility
-- Analytics and usage statistics
+**Note**: This application requires Azure OpenAI API access. Please ensure you have proper credentials and API access before running the application.

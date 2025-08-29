@@ -82,6 +82,9 @@ if (process.env.AZURE_OPENAI_API_KEY && process.env.AZURE_OPENAI_ENDPOINT && pro
 const connectedUsers = new Map();
 const videoRooms = new Map();
 
+// Store conversation history for each user
+const conversationHistory = new Map();
+
 // Routes
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -143,10 +146,10 @@ app.post('/videos/current', (req, res) => {
   res.json({ success: true, currentVideo: videoId });
 });
 
-// AI Chat endpoint
+// AI Chat endpoint with conversation history
 app.post('/ai-chat', async (req, res) => {
   try {
-    const { message, screenshot } = req.body;
+    const { message, screenshot, userId } = req.body;
     
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
@@ -159,12 +162,24 @@ app.post('/ai-chat', async (req, res) => {
       });
     }
 
+    // Get or initialize conversation history for this user
+    if (!conversationHistory.has(userId)) {
+      conversationHistory.set(userId, []);
+    }
+    const userHistory = conversationHistory.get(userId);
+
     let messages = [
       {
         role: "system",
-        content: "You are a helpful AI assistant that can analyze video content and answer questions about what's happening in the video. Provide clear, concise, and relevant answers."
+        content: "You are a helpful AI assistant that can analyze video content and answer questions about what's happening in the video. You maintain context from previous messages in the conversation. Provide clear, concise, and relevant answers that build upon the conversation history."
       }
     ];
+
+    // Add the last 2 messages from conversation history for context
+    const recentMessages = userHistory.slice(-2);
+    if (recentMessages.length > 0) {
+      messages.push(...recentMessages);
+    }
 
     // If screenshot is provided, use multimodal analysis
     if (screenshot) {
@@ -173,7 +188,7 @@ app.post('/ai-chat', async (req, res) => {
         content: [
           {
             type: "text", 
-            text: `Based on this video screenshot and the user's question: "${message}", please provide a helpful and relevant answer. The screenshot shows the current frame of the video being watched.`
+            text: `Based on this video screenshot and the user's question: "${message}", please provide a helpful and relevant answer. The screenshot shows the current frame of the video being watched. Consider the conversation context when responding.`
           },
           {
             type: "image_url",
@@ -199,10 +214,22 @@ app.post('/ai-chat', async (req, res) => {
 
     const aiResponse = completion.choices[0].message.content;
     
+    // Store the conversation in history
+    userHistory.push(
+      { role: "user", content: message },
+      { role: "assistant", content: aiResponse }
+    );
+
+    // Keep only the last 10 messages to prevent context from getting too long
+    if (userHistory.length > 10) {
+      conversationHistory.set(userId, userHistory.slice(-10));
+    }
+    
     res.json({
       success: true,
       response: aiResponse,
-      timestamp: new Date()
+      timestamp: new Date(),
+      conversationLength: userHistory.length
     });
   } catch (error) {
     console.error('AI Chat error:', error);
@@ -272,34 +299,65 @@ io.on('connection', (socket) => {
       console.log('📤 Broadcasting hand raised event');
       io.to('default').emit('handRaised', handRaiseData);
       
-      // If hand is raised and screenshot is provided, send to AI
+      // Broadcast video control to all users
+      if (user.isHandRaised) {
+        // Pause video for all users when hand is raised
+        io.to('default').emit('videoControl', {
+          action: 'pause',
+          userId: socket.id,
+          timestamp: new Date(),
+          reason: 'hand_raised'
+        });
+      } else {
+        // Play video for all users when hand is lowered
+        io.to('default').emit('videoControl', {
+          action: 'play',
+          userId: socket.id,
+          timestamp: new Date(),
+          reason: 'hand_lowered'
+        });
+      }
+      
+      // If hand is raised and screenshot is provided, send to AI with conversation context
       if (user.isHandRaised && data.screenshot && openai) {
         console.log('🤖 AI analysis requested for user:', user.username);
         try {
-          const aiResponse = await openai.chat.completions.create({
-            model: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
-            messages: [
+          // Get conversation history for this user
+          const userHistory = conversationHistory.get(socket.id) || [];
+          const recentMessages = userHistory.slice(-2);
+
+          let messages = [
+            {
+              role: "system",
+              content: "You are a helpful AI assistant analyzing a video frame. A user has raised their hand and wants to know about what's happening in this video frame. Consider any previous conversation context when providing your response."
+            }
+          ];
+
+          // Add recent conversation context
+          if (recentMessages.length > 0) {
+            messages.push(...recentMessages);
+          }
+
+          messages.push({
+            role: "user",
+            content: [
               {
-                role: "system",
-                content: "You are a helpful AI assistant analyzing a video frame. A user has raised their hand and wants to know about what's happening in this video frame. Provide a brief, helpful explanation."
+                type: "text",
+                text: "Please analyze this video frame and provide a brief explanation of what's happening. If there's relevant context from our previous conversation, please reference it:"
               },
               {
-                role: "user",
-                content: [
-                  {
-                    type: "text",
-                    text: "Please analyze this video frame and provide a brief explanation of what's happening:"
-                  },
-                  {
-                    type: "image_url",
-                    image_url: {
-                      url: data.screenshot
-                    }
-                  }
-                ]
+                type: "image_url",
+                image_url: {
+                  url: data.screenshot
+                }
               }
-            ],
-            max_tokens: 200,
+            ]
+          });
+
+          const aiResponse = await openai.chat.completions.create({
+            model: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
+            messages: messages,
+            max_tokens: 300,
             temperature: 0.7
           });
 
@@ -312,6 +370,16 @@ io.on('connection', (socket) => {
             type: 'ai-response',
             relatedTo: socket.id
           };
+          
+          // Store the conversation
+          if (!conversationHistory.has(socket.id)) {
+            conversationHistory.set(socket.id, []);
+          }
+          const history = conversationHistory.get(socket.id);
+          history.push(
+            { role: "user", content: "Please analyze this video frame and explain what's happening." },
+            { role: "assistant", content: aiResponse.choices[0].message.content }
+          );
           
           console.log('🤖 AI response generated:', aiResponse.choices[0].message.content.substring(0, 50) + '...');
           io.to('default').emit('newMessage', aiMessage);
@@ -335,6 +403,166 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Handle clear conversation history
+  socket.on('clearConversationHistory', () => {
+    console.log('🗑️ Clearing conversation history for user:', socket.id);
+    conversationHistory.delete(socket.id);
+  });
+
+  // Handle get conversation history request
+  socket.on('getConversationHistory', () => {
+    console.log('📚 Getting conversation history for user:', socket.id);
+    const userHistory = conversationHistory.get(socket.id) || [];
+    socket.emit('conversationHistory', userHistory);
+  });
+
+  // Handle AI chat messages with conversation context
+  socket.on('aiChatMessage', async (data) => {
+    console.log('🤖 AI chat message received from:', socket.id);
+    console.log('📝 Message data:', data);
+    console.log('🆕 Is first message:', data.isFirstMessage);
+    
+    if (!openai) {
+      const errorMessage = {
+        id: uuidv4(),
+        userId: 'ai-assistant',
+        username: 'AI Assistant',
+        message: 'AI service is not configured. Please set up Azure OpenAI credentials to enable AI features.',
+        timestamp: new Date(),
+        type: 'ai-response',
+        relatedTo: socket.id
+      };
+      
+      io.to('default').emit('newMessage', errorMessage);
+      return;
+    }
+
+    try {
+      // Get conversation history for this user
+      const userHistory = conversationHistory.get(socket.id) || [];
+      const recentMessages = userHistory.slice(-4); // Get last 4 messages for better context
+      
+      console.log('📚 User conversation history length:', userHistory.length);
+      console.log('🔄 Recent messages for context:', recentMessages.length);
+      console.log('📝 Current conversation history:', userHistory.map(msg => `${msg.role}: ${msg.content.substring(0, 30)}...`));
+
+      let messages = [
+        {
+          role: "system",
+          content: "You are a helpful AI assistant that can analyze video content and answer questions about what's happening in the video. You maintain context from previous messages in the conversation. For follow-up questions, reference the initial image analysis and provide detailed answers based on that context. Always be helpful and informative."
+        }
+      ];
+
+      // Add recent conversation context
+      if (recentMessages.length > 0) {
+        messages.push(...recentMessages);
+        console.log('✅ Added conversation context');
+        console.log('🔄 Recent messages being sent to AI:');
+        recentMessages.forEach((msg, index) => {
+          console.log(`  ${index + 1}. ${msg.role}: ${msg.content.substring(0, 50)}...`);
+        });
+      } else {
+        console.log('ℹ️ No conversation context available');
+      }
+
+      // If screenshot is provided (first message), use multimodal analysis
+      if (data.screenshot && data.isFirstMessage) {
+        console.log('🖼️ Using multimodal analysis with screenshot');
+        messages.push({
+          role: "user",
+          content: [
+            {
+              type: "text", 
+              text: `Please analyze this video screenshot and answer the user's question: "${data.message}". This is the initial analysis of the video frame. Provide a comprehensive description of what you see in the image.`
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: data.screenshot
+              }
+            }
+          ]
+        });
+      } else {
+        // For subsequent messages, use text-only with conversation context
+        console.log('💬 Using text-only analysis with conversation context');
+        messages.push({
+          role: "user",
+          content: `Based on our previous conversation about the video frame, please answer this follow-up question: "${data.message}". Reference the initial image analysis when providing your response.`
+        });
+      }
+
+      const aiResponse = await openai.chat.completions.create({
+        model: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
+        messages: messages,
+        max_tokens: 500,
+        temperature: 0.7
+      });
+
+      const aiMessage = {
+        id: uuidv4(),
+        userId: 'ai-assistant',
+        username: 'AI Assistant',
+        message: aiResponse.choices[0].message.content,
+        timestamp: new Date(),
+        type: 'ai-response',
+        relatedTo: socket.id
+      };
+
+      // Store the conversation
+      if (!conversationHistory.has(socket.id)) {
+        conversationHistory.set(socket.id, []);
+        console.log('🆕 Created new conversation history for user:', socket.id);
+      }
+      const history = conversationHistory.get(socket.id);
+      
+      // Add user message and AI response to history
+      history.push(
+        { role: "user", content: data.message },
+        { role: "assistant", content: aiResponse.choices[0].message.content }
+      );
+      
+      console.log('💾 Stored conversation - User message and AI response');
+      console.log('📊 Conversation history length after storing:', history.length);
+      console.log('📝 Current history:', history.map(msg => `${msg.role}: ${msg.content.substring(0, 30)}...`));
+
+      // Keep only the last 10 messages to prevent context from getting too long
+      if (history.length > 10) {
+        conversationHistory.set(socket.id, history.slice(-10));
+        console.log('✂️ Trimmed conversation history to 10 messages');
+      }
+      
+      console.log('🤖 AI response generated:', aiResponse.choices[0].message.content.substring(0, 50) + '...');
+      
+      // Send the AI response to the main chat
+      io.to('default').emit('newMessage', aiMessage);
+      
+      // Send conversation update to the specific user
+      console.log('📤 Sending conversation update to user:', socket.id);
+      console.log('📊 Final conversation history length:', history.length);
+      console.log('📝 Final history content:', history.map(msg => `${msg.role}: ${msg.content.substring(0, 30)}...`));
+      
+      socket.emit('conversationUpdate', {
+        userMessage: data.message,
+        aiResponse: aiResponse.choices[0].message.content,
+        conversationHistory: history
+      });
+    } catch (error) {
+      console.error('AI chat error:', error);
+      const errorMessage = {
+        id: uuidv4(),
+        userId: 'ai-assistant',
+        username: 'AI Assistant',
+        message: 'Sorry, I encountered an error. Please try again.',
+        timestamp: new Date(),
+        type: 'ai-response',
+        relatedTo: socket.id
+      };
+      
+      io.to('default').emit('newMessage', errorMessage);
+    }
+  });
+
   // Handle video control events
   socket.on('videoControl', (data) => {
     io.to('default').emit('videoControl', {
@@ -348,6 +576,8 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
     connectedUsers.delete(socket.id);
+    // Clean up conversation history for disconnected user
+    conversationHistory.delete(socket.id);
     io.to('default').emit('userList', Array.from(connectedUsers.values()));
   });
 });

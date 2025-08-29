@@ -92,6 +92,10 @@
                             <i class="fas fa-robot"></i>
                             <span>AI Chat</span>
                         </button>
+                        <div id="conversationIndicator" class="conversation-indicator hidden">
+                            <i class="fas fa-history"></i>
+                            <span>0 messages in conversation</span>
+                        </div>
                     </div>
                 </div>
 
@@ -128,9 +132,14 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h3><i class="fas fa-robot"></i> AI Assistant</h3>
-                    <button class="close-btn" id="closeAiModal">
-                        <i class="fas fa-times"></i>
-                    </button>
+                    <div class="modal-controls">
+                        <button class="clear-history-btn" id="clearHistoryBtn" title="Clear conversation history">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <button class="close-btn" id="closeAiModal">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="modal-body">
                     <div class="screenshot-preview">
